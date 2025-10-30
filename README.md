@@ -91,4 +91,4 @@ Eles incluem:
 
 ## 📖 Licença
 
-Este projeto está sob a licença. [**CLIQUE AQUI**]()
+Este projeto está sob a licença. [**CLIQUE AQUI**](LICENSE)

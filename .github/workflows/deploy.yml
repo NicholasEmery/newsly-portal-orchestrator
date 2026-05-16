@@ -1,0 +1,48 @@
+name: Deploy to server
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+jobs:
+    deploy:
+        runs-on: [self-hosted, deploy]
+
+        steps:
+            - name: Checkout repository with submodules
+              uses: actions/checkout@v4
+              with:
+                  submodules: true
+                  fetch-depth: 0
+
+            - name: Deploy with docker compose (self-hosted)
+              run: |
+                  set -e
+                  echo "[deploy] Subindo containers"
+                  docker compose pull || true
+                  docker compose build
+                  docker compose up -d
+
+                  echo "[deploy] OK"
+
+            - name: Notify Microsoft Teams
+              if: ${{ success() }}
+              env:
+                  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+              run: |
+                  if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+                    echo "TEAMS_WEBHOOK_URL não configurado. Pulando notificação."
+                    exit 0
+                  fi
+
+                  repo="${GITHUB_REPOSITORY}"
+                  branch="${GITHUB_REF_NAME}"
+                  actor="${GITHUB_ACTOR}"
+                  sha="${GITHUB_SHA}"
+                  run_id="${GITHUB_RUN_ID}"
+                  run_url="https://github.com/${repo}/actions/runs/${run_id}"
+
+                  payload='{"title":"Deploy concluído","text":"Deploy do repositório **'"${repo}"'** na branch **'"${branch}"'** foi concluído com sucesso. Autor: **'"${actor}"'**. Commit: '"${sha:0:7}"' (veja detalhes em '"${run_url}"')."}'
+
+                  curl -H "Content-Type: application/json" -d "$payload" "$TEAMS_WEBHOOK_URL"

@@ -1,0 +1,39 @@
+name: Update frontend submodule
+
+on:
+    repository_dispatch:
+        types: [frontend-updated]
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+jobs:
+    update-submodule:
+        runs-on: self-hosted
+        if: >
+          github.event_name == 'workflow_dispatch' ||
+          github.event.client_payload.source_repo == 'NicholasEmery/newsly-portal-frontend'
+
+        steps:
+            - name: Checkout repo with submodules
+              uses: actions/checkout@v4
+              with:
+                  submodules: true
+                  fetch-depth: 0
+
+            - name: Update frontend submodule
+              run: |
+                  git submodule update --remote frontend
+
+            - name: Commit and push submodule update
+              run: |
+                  if git status --porcelain | grep -q "frontend"; then
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git add frontend
+                    git commit -m "chore: update frontend submodule"
+                    git push
+                  else
+                    echo "No changes in frontend submodule."
+                  fi

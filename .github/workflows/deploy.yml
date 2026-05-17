@@ -1,8 +1,10 @@
 name: Deploy to server
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Update backend submodule", "Update frontend submodule"]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
@@ -14,32 +16,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build backend .env from environment secrets
+      - name: Ensure backend .env
         run: |
           set -e
           mkdir -p backend
 
-          cat <<EOF > backend/.env
-          ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}
-          AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
-          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-          GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          PORT=${{ secrets.PORT }}
-          REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}
-          UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}
-          EOF
+          if [ -f backend/.env ]; then
+            echo "Usando backend/.env já existente"
+          else
+            echo "Gerando backend/.env a partir dos secrets"
+            cat <<EOF > backend/.env
+            ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}
+            AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            PORT=${{ secrets.PORT }}
+            REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}
+            UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}
+            EOF
+          fi
 
-          echo "backend/.env gerado com sucesso"
+          echo "backend/.env pronto"
 
       - name: Upload backend env artifact
         uses: actions/upload-artifact@v4
@@ -57,19 +64,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build frontend .env from environment secrets
+      - name: Ensure frontend .env
         run: |
           set -e
           mkdir -p frontend
 
-          cat <<EOF > frontend/.env
-          NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}
-          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
-          NODE_ENV=${{ secrets.NODE_ENV }}
-          EOF
+          if [ -f frontend/.env ]; then
+            echo "Usando frontend/.env já existente"
+          else
+            echo "Gerando frontend/.env a partir dos secrets"
+            cat <<EOF > frontend/.env
+            NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
+            NODE_ENV=${{ secrets.NODE_ENV }}
+            EOF
+          fi
 
-          echo "frontend/.env gerado com sucesso"
+          echo "frontend/.env pronto"
 
       - name: Upload frontend env artifact
         uses: actions/upload-artifact@v4
@@ -113,7 +125,6 @@ jobs:
           echo "[deploy] Subindo containers"
           docker compose build --no-cache
           docker compose up -d
-
           echo "[deploy] OK"
 
       - name: Notify Microsoft Teams

@@ -2,48 +2,56 @@ name: Deploy to server
 
 on:
   workflow_run:
-    workflows: ["Update backend submodule", "Update frontend submodule"]
+    workflows:
+      - Update backend submodule
+      - Update frontend submodule
     types:
       - completed
+
   workflow_dispatch:
 
 jobs:
   prepare-backend-env:
     runs-on: [self-hosted, deploy]
+
     environment:
       name: Environments Backend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Ensure backend .env
+        shell: bash
         run: |
           set -e
+
           mkdir -p backend
 
           if [ -f backend/.env ]; then
             echo "Usando backend/.env já existente"
           else
             echo "Gerando backend/.env a partir dos secrets"
-            cat <<EOF > backend/.env
-            ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}
-            AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
-            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-            GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            PORT=${{ secrets.PORT }}
-            REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}
-            SMTP_HOST=${{ secrets.SMTP_HOST }}
-            SMTP_PASS=${{ secrets.SMTP_PASS }}
-            SMTP_PORT=${{ secrets.SMTP_PORT }}
-            SMTP_USER=${{ secrets.SMTP_USER }}
-            UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}
-            UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}
-            EOF
+
+            {
+              echo "ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}"
+              echo "AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}"
+              echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+              echo "EMAIL_FROM=${{ secrets.EMAIL_FROM }}"
+              echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+              echo "GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}"
+              echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+              echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+              echo "PORT=${{ secrets.PORT }}"
+              echo "REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}"
+              echo "SMTP_HOST=${{ secrets.SMTP_HOST }}"
+              echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
+              echo "SMTP_PORT=${{ secrets.SMTP_PORT }}"
+              echo "SMTP_USER=${{ secrets.SMTP_USER }}"
+              echo "UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}"
+              echo "UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}"
+            } > backend/.env
           fi
 
           echo "backend/.env pronto"
@@ -58,27 +66,32 @@ jobs:
 
   prepare-frontend-env:
     runs-on: [self-hosted, deploy]
+
     environment:
       name: Environments Frontend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Ensure frontend .env
+        shell: bash
         run: |
           set -e
+
           mkdir -p frontend
 
           if [ -f frontend/.env ]; then
             echo "Usando frontend/.env já existente"
           else
             echo "Gerando frontend/.env a partir dos secrets"
-            cat <<EOF > frontend/.env
-            NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-            NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
-            NODE_ENV=${{ secrets.NODE_ENV }}
-            EOF
+
+            {
+              echo "NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}"
+              echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}"
+              echo "NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}"
+              echo "NODE_ENV=${{ secrets.NODE_ENV }}"
+            } > frontend/.env
           fi
 
           echo "frontend/.env pronto"
@@ -92,7 +105,10 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    needs: [prepare-backend-env, prepare-frontend-env]
+    needs:
+      - prepare-backend-env
+      - prepare-frontend-env
+
     runs-on: [self-hosted, deploy]
 
     steps:
@@ -115,23 +131,39 @@ jobs:
           path: frontend
 
       - name: Check generated env files
+        shell: bash
         run: |
+          set -e
+
           test -f backend/.env
           test -f frontend/.env
 
-      - name: Deploy with docker compose (self-hosted)
+          echo "Arquivos .env encontrados"
+
+      - name: Deploy with docker compose
+        shell: bash
         run: |
           set -e
-          echo "[deploy] Subindo containers"
+
+          echo "[deploy] Buildando containers"
           docker compose build --no-cache
+
+          echo "[deploy] Subindo containers"
           docker compose up -d
+
           echo "[deploy] OK"
 
       - name: Notify Microsoft Teams
-        if: ${{ success() }}
+        if: success()
+
+        shell: bash
+
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
         run: |
+          set -e
+
           if [ -z "$TEAMS_WEBHOOK_URL" ]; then
             echo "TEAMS_WEBHOOK_URL não configurado. Pulando notificação."
             exit 0
@@ -142,8 +174,12 @@ jobs:
           actor="${GITHUB_ACTOR}"
           sha="${GITHUB_SHA}"
           run_id="${GITHUB_RUN_ID}"
+
           run_url="https://github.com/${repo}/actions/runs/${run_id}"
 
-          payload='{"title":"Deploy concluído","text":"Deploy do repositório **'"${repo}"'** na branch **'"${branch}"'** foi concluído com sucesso. Autor: **'"${actor}"'**. Commit: '"${sha:0:7}"' (veja detalhes em '"${run_url}"')."}'
+          payload="{\"title\":\"Deploy concluído\",\"text\":\"Deploy do repositório ${repo} na branch ${branch} foi concluído com sucesso. Autor: ${actor}. Commit: ${sha:0:7}. Veja detalhes: ${run_url}\"}"
 
-          curl -H "Content-Type: application/json" -d "$payload" "$TEAMS_WEBHOOK_URL"
+          curl \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$TEAMS_WEBHOOK_URL"

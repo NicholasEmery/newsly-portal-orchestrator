@@ -116,20 +116,22 @@ jobs:
           echo ">>> Conteúdo frontend/.env:"
           cat frontend/.env
 
+      - name: Confirm backend .env before build
+        shell: bash
+        run: |
+          set -e
+          echo ">>> Conferindo backend/.env antes do build"
+          ls -l backend/.env
+          cat backend/.env | grep DATABASE_URL
+
       - name: Deploy with docker compose
         shell: bash
         run: |
           set -e
-          # Exporta variáveis dos arquivos .env para o ambiente
-          export $(cat backend/.env | xargs)
-          export $(cat frontend/.env | xargs)
-
           echo "[deploy] Buildando containers"
           docker compose build --no-cache
-
           echo "[deploy] Subindo containers"
           docker compose up -d
-
           echo "[deploy] OK"
 
       - name: Notify Microsoft Teams

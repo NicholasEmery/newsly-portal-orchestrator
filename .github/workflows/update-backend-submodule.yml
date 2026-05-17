@@ -1,38 +1,43 @@
 name: Update backend submodule
 
 on:
-    repository_dispatch:
-        types: [backend-updated]
-    workflow_dispatch:
+  repository_dispatch:
+    types: [backend-updated]
+  workflow_dispatch:
 
 permissions:
-    contents: write
+  contents: write
+
+concurrency:
+  group: update-backend-submodule-main
+  cancel-in-progress: false
 
 jobs:
-    update-submodule:
-        runs-on: self-hosted
-        if: >
-          github.event_name == 'workflow_dispatch' ||
-          github.event.client_payload.source_repo == 'NicholasEmery/newsly-portal-backend'
-        steps:
-            - name: Checkout repo with submodules
-              uses: actions/checkout@v4
-              with:
-                  submodules: true
-                  fetch-depth: 0
+  update-submodule:
+    runs-on: self-hosted
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.client_payload.source_repo == 'NicholasEmery/newsly-portal-backend'
+    steps:
+      - name: Checkout repo with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
 
-            - name: Update backend submodule
-              run: |
-                  git submodule update --remote backend
+      - name: Update backend submodule
+        run: |
+          git submodule update --remote backend
 
-            - name: Commit and push submodule update
-              run: |
-                  if git status --porcelain | grep -q "backend"; then
-                    git config user.name "github-actions[bot]"
-                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                    git add backend
-                    git commit -m "chore: update backend submodule"
-                    git push
-                  else
-                    echo "No changes in backend submodule."
-                  fi
+      - name: Commit and push submodule update
+        run: |
+          if git status --porcelain | grep -q "backend"; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add backend
+            git commit -m "chore: update backend submodule"
+            git pull --rebase origin main
+            git push
+          else
+            echo "No changes in backend submodule."
+          fi

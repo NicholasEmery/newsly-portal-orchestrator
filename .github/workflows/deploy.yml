@@ -6,7 +6,84 @@ on:
     workflow_dispatch:
 
 jobs:
+    prepare-backend-env:
+        runs-on: [self-hosted, deploy]
+        environment:
+            name: Environments Backend
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Build backend .env from environment secrets
+              env:
+                  ENV_FILE: ${{ secrets.ENV_FILE }}
+                  DOTENV: ${{ secrets.DOTENV }}
+                  ENV_CONTENT: ${{ secrets.ENV_CONTENT }}
+              run: |
+                  set -e
+                  mkdir -p backend
+
+                  CONTENT="${ENV_FILE}"
+                  if [ -z "$CONTENT" ]; then CONTENT="${DOTENV}"; fi
+                  if [ -z "$CONTENT" ]; then CONTENT="${ENV_CONTENT}"; fi
+
+                  if [ -z "$CONTENT" ]; then
+                    echo "Nenhum secret de conteúdo de .env encontrado no Environment Backend."
+                    echo "Defina um dos secrets: ENV_FILE, DOTENV ou ENV_CONTENT"
+                    exit 1
+                  fi
+
+                  printf "%s" "$CONTENT" > backend/.env
+                  echo "backend/.env gerado com sucesso"
+
+            - name: Upload backend env artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: backend-env
+                  path: backend/.env
+                  include-hidden-files: true
+                  if-no-files-found: error
+
+    prepare-frontend-env:
+        runs-on: [self-hosted, deploy]
+        environment:
+            name: Environments Frontend
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Build frontend .env from environment secrets
+              env:
+                  ENV_FILE: ${{ secrets.ENV_FILE }}
+                  DOTENV: ${{ secrets.DOTENV }}
+                  ENV_CONTENT: ${{ secrets.ENV_CONTENT }}
+              run: |
+                  set -e
+                  mkdir -p frontend
+
+                  CONTENT="${ENV_FILE}"
+                  if [ -z "$CONTENT" ]; then CONTENT="${DOTENV}"; fi
+                  if [ -z "$CONTENT" ]; then CONTENT="${ENV_CONTENT}"; fi
+
+                  if [ -z "$CONTENT" ]; then
+                    echo "Nenhum secret de conteúdo de .env encontrado no Environment Frontend."
+                    echo "Defina um dos secrets: ENV_FILE, DOTENV ou ENV_CONTENT"
+                    exit 1
+                  fi
+
+                  printf "%s" "$CONTENT" > frontend/.env
+                  echo "frontend/.env gerado com sucesso"
+
+            - name: Upload frontend env artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: frontend-env
+                  path: frontend/.env
+                  include-hidden-files: true
+                  if-no-files-found: error
+
     deploy:
+        needs: [prepare-backend-env, prepare-frontend-env]
         runs-on: [self-hosted, deploy]
 
         steps:
@@ -15,6 +92,23 @@ jobs:
               with:
                   submodules: true
                   fetch-depth: 0
+
+            - name: Download backend env artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: backend-env
+                  path: backend
+
+            - name: Download frontend env artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: frontend-env
+                  path: frontend
+
+            - name: Check generated env files
+              run: |
+                  test -f backend/.env
+                  test -f frontend/.env
 
             - name: Deploy with docker compose (self-hosted)
               run: |

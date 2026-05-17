@@ -120,10 +120,16 @@ jobs:
         shell: bash
         run: |
           set -e
+          # Exporta variáveis dos arquivos .env para o ambiente
+          export $(cat backend/.env | xargs)
+          export $(cat frontend/.env | xargs)
+
           echo "[deploy] Buildando containers"
           docker compose build --no-cache
+
           echo "[deploy] Subindo containers"
           docker compose up -d
+
           echo "[deploy] OK"
 
       - name: Notify Microsoft Teams

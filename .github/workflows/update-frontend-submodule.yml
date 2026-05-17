@@ -19,6 +19,12 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.client_payload.source_repo == 'NicholasEmery/newsly-portal-frontend'
 
+    env:
+      NEWSLY_DATA_SOURCE: ${{ secrets.NEWSLY_DATA_SOURCE }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_APP_ORIGIN: ${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
+      NODE_ENV: ${{ secrets.NODE_ENV }}
+
     steps:
       - name: Checkout repo with submodules
         uses: actions/checkout@v4

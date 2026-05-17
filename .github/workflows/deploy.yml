@@ -1,142 +1,139 @@
 name: Deploy to server
 
 on:
-    push:
-        branches: [main]
-    workflow_dispatch:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-    prepare-backend-env:
-        runs-on: [self-hosted, deploy]
-        environment:
-            name: Environments Backend
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+  prepare-backend-env:
+    runs-on: [self-hosted, deploy]
+    environment:
+      name: Environments Backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Build backend .env from environment secrets
-              env:
-                  ENV_FILE: ${{ secrets.ENV_FILE }}
-                  DOTENV: ${{ secrets.DOTENV }}
-                  ENV_CONTENT: ${{ secrets.ENV_CONTENT }}
-              run: |
-                  set -e
-                  mkdir -p backend
+      - name: Build backend .env from environment secrets
+        run: |
+          set -e
+          mkdir -p backend
 
-                  CONTENT="${ENV_FILE}"
-                  if [ -z "$CONTENT" ]; then CONTENT="${DOTENV}"; fi
-                  if [ -z "$CONTENT" ]; then CONTENT="${ENV_CONTENT}"; fi
+          cat <<EOF > backend/.env
+          ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}
+          AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          PORT=${{ secrets.PORT }}
+          REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}
+          UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}
+          EOF
 
-                  if [ -z "$CONTENT" ]; then
-                    echo "Nenhum secret de conteúdo de .env encontrado no Environment Backend."
-                    echo "Defina um dos secrets: ENV_FILE, DOTENV ou ENV_CONTENT"
-                    exit 1
-                  fi
+          echo "backend/.env gerado com sucesso"
 
-                  printf "%s" "$CONTENT" > backend/.env
-                  echo "backend/.env gerado com sucesso"
+      - name: Upload backend env artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-env
+          path: backend/.env
+          include-hidden-files: true
+          if-no-files-found: error
 
-            - name: Upload backend env artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: backend-env
-                  path: backend/.env
-                  include-hidden-files: true
-                  if-no-files-found: error
+  prepare-frontend-env:
+    runs-on: [self-hosted, deploy]
+    environment:
+      name: Environments Frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    prepare-frontend-env:
-        runs-on: [self-hosted, deploy]
-        environment:
-            name: Environments Frontend
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+      - name: Build frontend .env from environment secrets
+        run: |
+          set -e
+          mkdir -p frontend
 
-            - name: Build frontend .env from environment secrets
-              env:
-                  ENV_FILE: ${{ secrets.ENV_FILE }}
-                  DOTENV: ${{ secrets.DOTENV }}
-                  ENV_CONTENT: ${{ secrets.ENV_CONTENT }}
-              run: |
-                  set -e
-                  mkdir -p frontend
+          cat <<EOF > frontend/.env
+          NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
+          NODE_ENV=${{ secrets.NODE_ENV }}
+          EOF
 
-                  CONTENT="${ENV_FILE}"
-                  if [ -z "$CONTENT" ]; then CONTENT="${DOTENV}"; fi
-                  if [ -z "$CONTENT" ]; then CONTENT="${ENV_CONTENT}"; fi
+          echo "frontend/.env gerado com sucesso"
 
-                  if [ -z "$CONTENT" ]; then
-                    echo "Nenhum secret de conteúdo de .env encontrado no Environment Frontend."
-                    echo "Defina um dos secrets: ENV_FILE, DOTENV ou ENV_CONTENT"
-                    exit 1
-                  fi
+      - name: Upload frontend env artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-env
+          path: frontend/.env
+          include-hidden-files: true
+          if-no-files-found: error
 
-                  printf "%s" "$CONTENT" > frontend/.env
-                  echo "frontend/.env gerado com sucesso"
+  deploy:
+    needs: [prepare-backend-env, prepare-frontend-env]
+    runs-on: [self-hosted, deploy]
 
-            - name: Upload frontend env artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: frontend-env
-                  path: frontend/.env
-                  include-hidden-files: true
-                  if-no-files-found: error
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
 
-    deploy:
-        needs: [prepare-backend-env, prepare-frontend-env]
-        runs-on: [self-hosted, deploy]
+      - name: Download backend env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-env
+          path: backend
 
-        steps:
-            - name: Checkout repository with submodules
-              uses: actions/checkout@v4
-              with:
-                  submodules: true
-                  fetch-depth: 0
+      - name: Download frontend env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-env
+          path: frontend
 
-            - name: Download backend env artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: backend-env
-                  path: backend
+      - name: Check generated env files
+        run: |
+          test -f backend/.env
+          test -f frontend/.env
 
-            - name: Download frontend env artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: frontend-env
-                  path: frontend
+      - name: Deploy with docker compose (self-hosted)
+        run: |
+          set -e
+          echo "[deploy] Subindo containers"
+          docker compose pull || true
+          docker compose build
+          docker compose up -d
 
-            - name: Check generated env files
-              run: |
-                  test -f backend/.env
-                  test -f frontend/.env
+          echo "[deploy] OK"
 
-            - name: Deploy with docker compose (self-hosted)
-              run: |
-                  set -e
-                  echo "[deploy] Subindo containers"
-                  docker compose pull || true
-                  docker compose build
-                  docker compose up -d
+      - name: Notify Microsoft Teams
+        if: ${{ success() }}
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+            echo "TEAMS_WEBHOOK_URL não configurado. Pulando notificação."
+            exit 0
+          fi
 
-                  echo "[deploy] OK"
+          repo="${GITHUB_REPOSITORY}"
+          branch="${GITHUB_REF_NAME}"
+          actor="${GITHUB_ACTOR}"
+          sha="${GITHUB_SHA}"
+          run_id="${GITHUB_RUN_ID}"
+          run_url="https://github.com/${repo}/actions/runs/${run_id}"
 
-            - name: Notify Microsoft Teams
-              if: ${{ success() }}
-              env:
-                  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-              run: |
-                  if [ -z "$TEAMS_WEBHOOK_URL" ]; then
-                    echo "TEAMS_WEBHOOK_URL não configurado. Pulando notificação."
-                    exit 0
-                  fi
+          payload='{"title":"Deploy concluído","text":"Deploy do repositório **'"${repo}"'** na branch **'"${branch}"'** foi concluído com sucesso. Autor: **'"${actor}"'**. Commit: '"${sha:0:7}"' (veja detalhes em '"${run_url}"')."}'
 
-                  repo="${GITHUB_REPOSITORY}"
-                  branch="${GITHUB_REF_NAME}"
-                  actor="${GITHUB_ACTOR}"
-                  sha="${GITHUB_SHA}"
-                  run_id="${GITHUB_RUN_ID}"
-                  run_url="https://github.com/${repo}/actions/runs/${run_id}"
-
-                  payload='{"title":"Deploy concluído","text":"Deploy do repositório **'"${repo}"'** na branch **'"${branch}"'** foi concluído com sucesso. Autor: **'"${actor}"'**. Commit: '"${sha:0:7}"' (veja detalhes em '"${run_url}"')."}'
-
-                  curl -H "Content-Type: application/json" -d "$payload" "$TEAMS_WEBHOOK_URL"
+          curl -H "Content-Type: application/json" -d "$payload" "$TEAMS_WEBHOOK_URL"

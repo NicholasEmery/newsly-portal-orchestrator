@@ -19,7 +19,6 @@ services:
       dockerfile: Dockerfile
     container_name: newsly-backend
     image: newsly-backend:latest
-    # Usa o .env do backend no runtime
     env_file:
       - ./backend/.env
     environment:
@@ -30,6 +29,7 @@ services:
         condition: service_healthy
     volumes:
       - newsly-uploads:/app/uploads
+      - ./backend/.env:/app/.env   # monta o .env como volume
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -47,7 +47,6 @@ services:
       dockerfile: Dockerfile
     container_name: newsly-frontend
     image: newsly-frontend:latest
-    # Usa o .env do frontend no runtime
     env_file:
       - ./frontend/.env
     environment:

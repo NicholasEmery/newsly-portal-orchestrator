@@ -13,10 +13,8 @@ on:
 jobs:
   prepare-backend-env:
     runs-on: [self-hosted, deploy]
-
     environment:
       name: Environments Backend
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,36 +23,20 @@ jobs:
         shell: bash
         run: |
           set -e
-
           mkdir -p backend
-
           if [ -f backend/.env ]; then
             echo "Usando backend/.env já existente"
           else
             echo "Gerando backend/.env a partir dos secrets"
-
             {
-              echo "ACCESS_EXPIRES_IN=${{ secrets.ACCESS_EXPIRES_IN }}"
-              echo "AUTH_FRONTEND_ORIGIN=${{ secrets.AUTH_FRONTEND_ORIGIN }}"
               echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
-              echo "EMAIL_FROM=${{ secrets.EMAIL_FROM }}"
-              echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
-              echo "GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}"
-              echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
-              echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
               echo "PORT=${{ secrets.PORT }}"
-              echo "REFRESH_EXPIRES_DAYS=${{ secrets.REFRESH_EXPIRES_DAYS }}"
-              echo "SMTP_HOST=${{ secrets.SMTP_HOST }}"
-              echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
-              echo "SMTP_PORT=${{ secrets.SMTP_PORT }}"
-              echo "SMTP_USER=${{ secrets.SMTP_USER }}"
-              echo "UPLOAD_DIR_DEV=${{ secrets.UPLOAD_DIR_DEV }}"
-              echo "UPLOAD_DIR_PROD=${{ secrets.UPLOAD_DIR_PROD }}"
+              # demais variáveis...
             } > backend/.env
           fi
-
-          echo "backend/.env pronto"
+          echo ">>> backend/.env pronto"
+          cat backend/.env
 
       - name: Upload backend env artifact
         uses: actions/upload-artifact@v4
@@ -66,10 +48,8 @@ jobs:
 
   prepare-frontend-env:
     runs-on: [self-hosted, deploy]
-
     environment:
       name: Environments Frontend
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -78,23 +58,19 @@ jobs:
         shell: bash
         run: |
           set -e
-
           mkdir -p frontend
-
           if [ -f frontend/.env ]; then
             echo "Usando frontend/.env já existente"
           else
             echo "Gerando frontend/.env a partir dos secrets"
-
             {
-              echo "NEWSLY_DATA_SOURCE=${{ secrets.NEWSLY_DATA_SOURCE }}"
               echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}"
-              echo "NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}"
               echo "NODE_ENV=${{ secrets.NODE_ENV }}"
+              # demais variáveis...
             } > frontend/.env
           fi
-
-          echo "frontend/.env pronto"
+          echo ">>> frontend/.env pronto"
+          cat frontend/.env
 
       - name: Upload frontend env artifact
         uses: actions/upload-artifact@v4
@@ -108,9 +84,7 @@ jobs:
     needs:
       - prepare-backend-env
       - prepare-frontend-env
-
     runs-on: [self-hosted, deploy]
-
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
@@ -134,52 +108,40 @@ jobs:
         shell: bash
         run: |
           set -e
-
           test -f backend/.env
           test -f frontend/.env
-
-          echo "Arquivos .env encontrados"
+          echo ">>> Arquivos .env encontrados"
+          echo ">>> Conteúdo backend/.env:"
+          cat backend/.env
+          echo ">>> Conteúdo frontend/.env:"
+          cat frontend/.env
 
       - name: Deploy with docker compose
         shell: bash
         run: |
           set -e
-
           echo "[deploy] Buildando containers"
           docker compose build --no-cache
-
           echo "[deploy] Subindo containers"
           docker compose up -d
-
           echo "[deploy] OK"
 
       - name: Notify Microsoft Teams
         if: success()
-
         shell: bash
-
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
         run: |
           set -e
-
           if [ -z "$TEAMS_WEBHOOK_URL" ]; then
             echo "TEAMS_WEBHOOK_URL não configurado. Pulando notificação."
             exit 0
           fi
-
           repo="${GITHUB_REPOSITORY}"
           branch="${GITHUB_REF_NAME}"
           actor="${GITHUB_ACTOR}"
           sha="${GITHUB_SHA}"
           run_id="${GITHUB_RUN_ID}"
-
           run_url="https://github.com/${repo}/actions/runs/${run_id}"
-
           payload="{\"title\":\"Deploy concluído\",\"text\":\"Deploy do repositório ${repo} na branch ${branch} foi concluído com sucesso. Autor: ${actor}. Commit: ${sha:0:7}. Veja detalhes: ${run_url}\"}"
-
-          curl \
-            -H "Content-Type: application/json" \
-            -d "$payload" \
-            "$TEAMS_WEBHOOK_URL"
+          curl -H "Content-Type: application/json" -d "$payload" "$TEAMS_WEBHOOK_URL"

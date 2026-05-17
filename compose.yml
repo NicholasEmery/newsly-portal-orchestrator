@@ -1,48 +1,46 @@
-version: "3.9"
-
 services:
   mongo:
     image: mongo:7
     container_name: newsly-mongo
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     volumes:
       - newsly-mongo-data:/data/db
     networks:
-      - newsly-back-db-network
+      - back-db-network
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: mongodb://mongo:27017/newsly-db
     container_name: newsly-backend
+    image: newsly-backend:latest
     env_file:
       - ./backend/.env
-    image: newsly-backend:latest
     environment:
       - NODE_ENV=production
-      # Pode sobrescrever se quiser outro caminho de uploads
       - UPLOAD_DIR=/app/uploads
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     volumes:
-      # Pasta local de uploads mapeada para o UPLOAD_DIR do container
       - newsly-uploads:/app/uploads
     ports:
       - "3001:3001"
     restart: unless-stopped
-    # Endurece o container para reduzir superfície de ataque
-    read_only: true # Sistema de arquivos raiz somente leitura
-    tmpfs:
-      - /tmp # Diretório temporário em tmpfs, gravável
-    security_opt:
-      - no-new-privileges:true # Impede ganho de privilégios dentro do container
-    cap_drop:
-      - ALL # Remove todas as Linux capabilities desnecessárias
+    command: >
+      sh -c "echo '>>> DATABASE_URL no backend: $DATABASE_URL' &&
+             npx prisma generate &&
+             node dist/main.js"
     networks:
-      - newsly-front-back-network
-      - newsly-back-db-network
+      - front-back-network
+      - back-db-network
 
   frontend:
     build:
@@ -51,32 +49,29 @@ services:
       args:
         NEXT_PUBLIC_API_URL: http://newsly-backend:3001
     container_name: newsly-frontend
+    image: newsly-frontend:latest
     env_file:
       - ./frontend/.env
-    image: newsly-frontend:latest
     environment:
       - NODE_ENV=production
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    ports:
+      - "3000:3000"
     restart: unless-stopped
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+    command: >
+      sh -c "echo '>>> NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL' &&
+             node server.js"
     networks:
-      - newsly-front-back-network
+      - front-back-network
 
 volumes:
   newsly-uploads:
   newsly-mongo-data:
 
 networks:
-  newsly-front-back-network:
+  front-back-network:
     driver: bridge
-    internal: true
-
-  newsly-back-db-network:
+  back-db-network:
     driver: bridge

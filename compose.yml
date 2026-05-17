@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: newsly-mongo
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    volumes:
+      - newsly-mongo-data:/data/db
+    networks:
+      - newsly-back-db-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: newsly-backend
+    env_file:
+      - ./backend/.env
+    image: newsly-backend:latest
+    environment:
+      - NODE_ENV=production
+      # Pode sobrescrever se quiser outro caminho de uploads
+      - UPLOAD_DIR=/app/uploads
+    depends_on:
+      - mongo
+    volumes:
+      # Pasta local de uploads mapeada para o UPLOAD_DIR do container
+      - newsly-uploads:/app/uploads
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    # Endurece o container para reduzir superfície de ataque
+    read_only: true # Sistema de arquivos raiz somente leitura
+    tmpfs:
+      - /tmp # Diretório temporário em tmpfs, gravável
+    security_opt:
+      - no-new-privileges:true # Impede ganho de privilégios dentro do container
+    cap_drop:
+      - ALL # Remove todas as Linux capabilities desnecessárias
+    networks:
+      - newsly-front-back-network
+      - newsly-back-db-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://newsly-backend:3001
+    container_name: newsly-frontend
+    env_file:
+      - ./frontend/.env
+    image: newsly-frontend:latest
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - newsly-front-back-network
+
+volumes:
+  newsly-uploads:
+  newsly-mongo-data:
+
+networks:
+  newsly-front-back-network:
+    driver: bridge
+    internal: true
+
+  newsly-back-db-network:
+    driver: bridge

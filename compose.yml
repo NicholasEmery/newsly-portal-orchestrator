@@ -18,7 +18,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        DATABASE_URL: mongodb://mongo:27017/newsly-db
+        DATABASE_URL: ${DATABASE_URL}   # pega do backend/.env
     container_name: newsly-backend
     image: newsly-backend:latest
     env_file:
@@ -47,7 +47,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://newsly-backend:3001
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # pega do frontend/.env
     container_name: newsly-frontend
     image: newsly-frontend:latest
     env_file:

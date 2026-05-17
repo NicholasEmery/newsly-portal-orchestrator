@@ -111,8 +111,7 @@ jobs:
         run: |
           set -e
           echo "[deploy] Subindo containers"
-          docker compose pull || true
-          docker compose build
+          docker compose build --no-cache
           docker compose up -d
 
           echo "[deploy] OK"

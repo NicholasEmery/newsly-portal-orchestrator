@@ -1,0 +1,110 @@
+name: Deploy Frontend
+
+on:
+  workflow_run:
+    workflows: ["Update frontend submodule"]
+    types: [completed]
+
+  workflow_dispatch:
+
+jobs:
+  prepare-frontend-env:
+    runs-on: [self-hosted, deploy]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: Environments Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure frontend .env
+        run: |
+          set -e
+          mkdir -p frontend
+          if [ -f frontend/.env ]; then
+            echo "Usando frontend/.env já existente"
+          else
+            {
+              echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}"
+              echo "NODE_ENV=production"
+            } > frontend/.env
+          fi
+          cat frontend/.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-env
+          path: frontend/.env
+          include-hidden-files: true
+          if-no-files-found: error
+
+  deploy-frontend:
+    needs: prepare-frontend-env
+    runs-on: [self-hosted, deploy]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-env
+          path: frontend
+      - name: Deploy frontend
+        run: |
+          docker compose build frontend --no-cache
+          docker compose up -d frontend
+      - name: Notify deployment Telegram Bot
+        if: always()
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DEPLOY_STATUS: ${{ job.status }}
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          commit_author="$(git log -1 --pretty=%an)"
+          commit_message="$(git log -1 --pretty=%s)"
+          commit_body="$(git log -1 --pretty=%b)"
+          branch_name="${GITHUB_REF_NAME:-main}"
+
+          export COMMIT_SHA="${commit_sha}"
+          export COMMIT_AUTHOR="${commit_author}"
+          export COMMIT_MESSAGE="${commit_message}"
+          export COMMIT_BODY="${commit_body}"
+          export BRANCH_NAME="${branch_name}"
+          export SERVICE_NAME="Frontend"
+
+          python3 - <<'PY'
+          import html
+          import os
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ["TELEGRAM_BOT_TOKEN"]
+          chat_id = os.environ["TELEGRAM_CHAT_ID"]
+          status = os.environ["DEPLOY_STATUS"]
+          commit_sha = os.environ["COMMIT_SHA"]
+          commit_author = os.environ["COMMIT_AUTHOR"]
+          commit_message = os.environ["COMMIT_MESSAGE"]
+          commit_body = os.environ["COMMIT_BODY"]
+          branch_name = os.environ["BRANCH_NAME"]
+          service_name = os.environ["SERVICE_NAME"]
+
+          status_label = "foi concluído com sucesso" if status == "success" else "falhou"
+          body_html = f"<br><b>Descrição:</b> {html.escape(commit_body)}" if commit_body.strip() else ""
+          text = (
+              f"<b>Olá Senhor!</b> O deploy do {service_name} do Newly Portal {status_label}. 🚀"
+              f"<br><br><b>Informações do commit:</b>"
+              f"<br><code>{html.escape(commit_sha)}</code>"
+              f"<br><b>Autor:</b> {html.escape(commit_author)}"
+              f"<br><b>Mensagem:</b> {html.escape(commit_message)}"
+              f"{body_html}"
+              f"<br><b>Branch:</b> {html.escape(branch_name)}"
+              f"<br><br><b>Status:</b> {html.escape(status)}"
+              f"<br><br><b>Tenha um ótimo dia! 😄"
+          )
+          data = urllib.parse.urlencode({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode()
+          request = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data)
+          with urllib.request.urlopen(request) as response:
+              response.read()
+          PY

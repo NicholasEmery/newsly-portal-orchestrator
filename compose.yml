@@ -18,7 +18,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       secrets:
-        - backend_env
+        - source: backend_env
+          target: dotenv
     container_name: newsly-backend
     image: newsly-backend:latest
     env_file:

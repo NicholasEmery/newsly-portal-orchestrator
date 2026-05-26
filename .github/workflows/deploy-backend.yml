@@ -55,6 +55,27 @@ jobs:
             } > backend/.env
           fi
       - name: Deploy backend
+        env:
+          BACKEND_PORT: ${{ secrets.BACKEND_PORT }}
+          FRONTEND_PORT: ${{ secrets.FRONTEND_PORT }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          PORT: ${{ secrets.PORT }}
+          ACCESS_EXPIRES_IN: ${{ secrets.ACCESS_EXPIRES_IN }}
+          REFRESH_EXPIRES_DAYS: ${{ secrets.REFRESH_EXPIRES_DAYS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          AUTH_FRONTEND_ORIGIN: ${{ secrets.AUTH_FRONTEND_ORIGIN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          UPLOAD_DIR_DEV: ${{ secrets.UPLOAD_DIR_DEV }}
+          UPLOAD_DIR_PROD: ${{ secrets.UPLOAD_DIR_PROD }}
         run: |
           docker compose build backend --no-cache
           docker compose up -d backend

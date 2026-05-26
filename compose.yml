@@ -27,6 +27,8 @@ services:
     environment:
       - PORT=${BACKEND_PORT}
       - UPLOAD_DIR=/app/uploads
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
     read_only: true
     expose:
       - "${BACKEND_PORT}"

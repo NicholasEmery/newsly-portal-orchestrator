@@ -19,14 +19,11 @@ jobs:
         run: |
           set -e
           mkdir -p frontend
-          if [ -f frontend/.env ]; then
-            echo "Usando frontend/.env já existente"
-          else
-            {
-              echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}"
-              echo "NODE_ENV=production"
-            } > frontend/.env
-          fi
+          {
+            echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}"
+            echo "NEXT_PUBLIC_APP_ORIGIN=${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}"
+            echo "NODE_ENV=production"
+          } > frontend/.env
           cat frontend/.env
       - uses: actions/upload-artifact@v4
         with:
@@ -54,8 +51,8 @@ jobs:
           BACKEND_PORT: ${{ secrets.BACKEND_PORT }}
           FRONTEND_PORT: ${{ secrets.FRONTEND_PORT }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEWSLY_DATA_SOURCE: ${{ secrets.NEWSLY_DATA_SOURCE }}
           NEXT_PUBLIC_APP_ORIGIN: ${{ secrets.NEXT_PUBLIC_APP_ORIGIN }}
+          NEWSLY_DATA_SOURCE: ${{ secrets.NEWSLY_DATA_SOURCE }}
           NODE_ENV: ${{ secrets.NODE_ENV }}
         run: |
           docker compose build frontend --no-cache

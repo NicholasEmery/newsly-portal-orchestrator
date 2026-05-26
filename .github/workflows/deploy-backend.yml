@@ -18,15 +18,11 @@ jobs:
         run: |
           set -e
           mkdir -p backend
-          if [ -f backend/.env ]; then
-            echo "Usando backend/.env já existente"
-          else
-            {
-              echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
-              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-              echo "PORT=${{ secrets.PORT }}"
-            } > backend/.env
-          fi
+          {
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+            echo "PORT=${{ secrets.PORT }}"
+          } > backend/.env
           cat backend/.env
 
   deploy-backend:
@@ -45,15 +41,11 @@ jobs:
         run: |
           set -e
           mkdir -p backend
-          if [ -f backend/.env ]; then
-            echo "Usando backend/.env já existente"
-          else
-            {
-              echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
-              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-              echo "PORT=${{ secrets.PORT }}"
-            } > backend/.env
-          fi
+          {
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+            echo "PORT=${{ secrets.PORT }}"
+          } > backend/.env
       - name: Deploy backend
         env:
           BACKEND_PORT: ${{ secrets.BACKEND_PORT }}

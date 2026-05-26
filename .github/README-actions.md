@@ -4,11 +4,12 @@ Responsabilidades:
 
 - Atualizar submodules (`frontend`/`backend`) quando receber `repository_dispatch` do repositório de origem.
 - Fazer deploy via `docker compose` em runner `self-hosted` (label `deploy`).
+- Notificar no Telegram depois que o deploy do backend ou do frontend terminar, usando o GitHub SDK para validar o resultado e montar o diagnóstico.
 
 Requisitos operacionais:
 
 - Runners self-hosted: pelo menos um runner com labels `self-hosted` e `deploy`, com Docker instalado e capaz de executar `docker compose`.
-- Secrets: `TEAMS_WEBHOOK_URL` (opcional) para notificações no `deploy.yml`.
+- Secrets: `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` para o workflow `notify-deployment.yml`; `TEAMS_WEBHOOK_URL` segue opcional para outras notificações do deploy.
 
 Permissões e tokens:
 
@@ -17,6 +18,7 @@ Permissões e tokens:
 Como validar localmente:
 
 - O workflow `deploy.yml` dispara em push para `main`.
+- O workflow `notify-deployment.yml` dispara automaticamente após `Deploy Backend` ou `Deploy Frontend` concluir, independentemente de sucesso ou falha.
 - Os workflows `update-*-submodule.yml` reagem a `repository_dispatch` e atualizam submodules.
 
 Commit readiness:

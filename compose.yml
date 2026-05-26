@@ -96,5 +96,3 @@ networks:
 secrets:
   backend_env:
     file: ./backend/.env
-          
-          

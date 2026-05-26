@@ -6,6 +6,10 @@ on:
     types: [completed]
   workflow_dispatch:
 
+concurrency:
+  group: newsly-orchestrator-pipeline-main
+  cancel-in-progress: false
+
 jobs:
   prepare-backend-env:
     runs-on: [self-hosted, deploy]

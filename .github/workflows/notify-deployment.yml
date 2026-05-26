@@ -8,6 +8,10 @@ on:
     types:
       - completed
 
+concurrency:
+  group: newsly-orchestrator-pipeline-main
+  cancel-in-progress: false
+
 permissions:
   contents: read
   actions: read

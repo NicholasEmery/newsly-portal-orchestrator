@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-backend-submodule-main
+  group: newsly-orchestrator-pipeline-main
   cancel-in-progress: false
 
 jobs:

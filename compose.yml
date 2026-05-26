@@ -25,10 +25,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - PORT=${BACKEND_PORT}
+      - PORT=${BACKEND_PORT:-3001}
       - UPLOAD_DIR=/app/uploads
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "${BACKEND_PORT:-3001}:3001"
     read_only: true
     expose:
       - "${BACKEND_PORT}"
@@ -59,8 +59,9 @@ services:
     env_file:
       - ./frontend/.env
     environment:
-      - PORT=${FRONTEND_PORT}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - PORT=${FRONTEND_PORT:-3000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://newsly-backend:3001}
+      - NEXT_PUBLIC_APP_ORIGIN=${NEXT_PUBLIC_APP_ORIGIN:-https://newsly.nicholasemery.dev}
     read_only: true
     tmpfs:
       - /tmp
@@ -73,7 +74,7 @@ services:
       backend:
         condition: service_started
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "${FRONTEND_PORT:-3000}:3000"
     restart: unless-stopped
     networks:
       - front-back-network

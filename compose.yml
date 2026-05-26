@@ -31,7 +31,7 @@ services:
       - "${BACKEND_PORT:-3001}:3001"
     read_only: true
     expose:
-      - "${BACKEND_PORT}"
+      - "${BACKEND_PORT:-3001}"
     tmpfs:
       - /tmp
       - /app/.tmp

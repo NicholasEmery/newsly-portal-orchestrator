@@ -60,7 +60,8 @@ services:
       - ./frontend/.env
     environment:
       - PORT=${FRONTEND_PORT}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=http://backend:${BACKEND_PORT}
+      - NEXT_PUBLIC_NEWSLY_DEPLOYMENT_TARGET=docker
       - NEXT_PUBLIC_APP_ORIGIN=${NEXT_PUBLIC_APP_ORIGIN}
     read_only: true
     tmpfs:

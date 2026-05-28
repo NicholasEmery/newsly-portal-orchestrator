@@ -18,26 +18,57 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       github.event.client_payload.source_repo == 'NicholasEmery/newsly-portal-backend'
+
     steps:
       - name: Checkout repo with submodules
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
           fetch-depth: 0
+          ref: main
+          persist-credentials: true
 
-      - name: Update backend submodule
+      - name: Configure Git user
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Configure SSH deploy key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.ORCHESTRATOR_DEPLOY_KEY }}" > ~/.ssh/orchestrator_deploy_key
+          chmod 600 ~/.ssh/orchestrator_deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Update backend submodule and push if changed
+        shell: bash
+        run: |
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/orchestrator_deploy_key -o IdentitiesOnly=yes"
           git submodule update --remote backend
 
-      - name: Commit and push submodule update
-        run: |
-          if git status --porcelain | grep -q "backend"; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add backend
-            git commit -m "chore: update backend submodule"
-            git pull --rebase origin main
-            git push
+          cd backend
+          sub_subject=$(git log -1 --pretty=%s)
+          sub_body=$(git log -1 --pretty=%B)
+          sub_author_name=$(git log -1 --pretty=%an)
+          sub_author_email=$(git log -1 --pretty=%ae)
+          sub_author_date=$(git log -1 --pretty=%aI)
+          sub_committer_name=$(git log -1 --pretty=%cn)
+          sub_committer_email=$(git log -1 --pretty=%ce)
+          sub_committer_date=$(git log -1 --pretty=%cI)
+          cd - >/dev/null
+
+          git add backend
+          if ! git diff --staged --quiet; then
+            if [ -z "$sub_body" ]; then
+              GIT_AUTHOR_NAME="$sub_author_name" GIT_AUTHOR_EMAIL="$sub_author_email" GIT_AUTHOR_DATE="$sub_author_date" \
+              GIT_COMMITTER_NAME="$sub_committer_name" GIT_COMMITTER_EMAIL="$sub_committer_email" GIT_COMMITTER_DATE="$sub_committer_date" \
+              git commit --no-verify -m "$sub_subject"
+            else
+              GIT_AUTHOR_NAME="$sub_author_name" GIT_AUTHOR_EMAIL="$sub_author_email" GIT_AUTHOR_DATE="$sub_author_date" \
+              GIT_COMMITTER_NAME="$sub_committer_name" GIT_COMMITTER_EMAIL="$sub_committer_email" GIT_COMMITTER_DATE="$sub_committer_date" \
+              git commit --no-verify -m "$sub_subject" -m "$sub_body"
+            fi
+            git push git@github.com:NicholasEmery/newsly-portal-orchestrator.git HEAD:main
           else
-            echo "No changes in backend submodule."
+            echo "No changes to submodule"
           fi

@@ -26,6 +26,22 @@ services:
       - ./backend/.env
     environment:
       - PORT=3333
+      - NODE_ENV=production
+      - NEWSLY_ENV=production
+      - NEWSLY_DEPLOYMENT_TARGET=docker
+      - FRONTEND_URL_DOCKER=https://newsly.nicholasemery.dev
+      - ACCESS_EXPIRES_IN=${ACCESS_EXPIRES_IN}
+      - REFRESH_EXPIRES_DAYS=${REFRESH_EXPIRES_DAYS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - AUTH_FRONTEND_ORIGIN=${AUTH_FRONTEND_ORIGIN}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
       - UPLOAD_DIR=/app/uploads
     ports:
       - "3333:3333"

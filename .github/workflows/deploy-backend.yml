@@ -13,7 +13,7 @@ concurrency:
 jobs:
   prepare-backend-env:
     runs-on: [self-hosted, deploy]
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: Environments Backend
     steps:
@@ -34,7 +34,7 @@ jobs:
     runs-on: [self-hosted, deploy]
     environment:
       name: Environments Backend
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -78,7 +78,7 @@ services:
     environment:
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_API_URL=http://backend:3333
+      - NEXT_PUBLIC_API_URL=http://newsly-backend:3333
       - NEXT_PUBLIC_NEWSLY_DEPLOYMENT_TARGET=docker
       - NEXT_PUBLIC_APP_ORIGIN=https://newsly.nicholasemery.dev
     read_only: true
